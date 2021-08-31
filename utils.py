@@ -1,7 +1,7 @@
 import json
-import rejson
 import datetime
 import pandas as pd
+import plotly.graph_objs
 
 date_format = "%Y-%m-%d"
 
@@ -18,20 +18,20 @@ def batch(iterable, n=1):
     for ndx in range(0, l, n):
         yield iterable[ndx : min(ndx + n, l)]
 
-
-def get_redis_conn() -> rejson.Client:
-    """
-    Get a simple wrapper to get the redis conn
-    This has been slightly modified by the RedisJsonDecode() object from utils
-    :return: the redis-json client obj
-    """
-    return rejson.Client(
-        host="localhost",
-        port=6379,
-        db=0,
-        decode_responses=True,
-        decoder=RedisJsonDecoder(),
-    )
+#
+# def get_redis_conn() -> rejson.Client:
+#     """
+#     Get a simple wrapper to get the redis conn
+#     This has been slightly modified by the RedisJsonDecode() object from utils
+#     :return: the redis-json client obj
+#     """
+#     return rejson.Client(
+#         host="localhost",
+#         port=6379,
+#         db=0,
+#         decode_responses=True,
+#         decoder=RedisJsonDecoder(),
+#     )
 
 
 def split_dates(date_str: str) -> list:
@@ -54,3 +54,24 @@ def convert_to_datetime(date_str: str) -> datetime.datetime:
 
 def log_return(price: pd.Series):
     return np.log(price).diff()
+
+
+def add_time_series_slider(fig: plotly.graph_objs.Figure) -> plotly.graph_objs.Figure:
+    fig.update_layout(
+        xaxis=dict(
+            rangeselector=dict(
+                buttons=list(
+                    [
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(count=6, label="6m", step="month", stepmode="backward"),
+                        dict(count=1, label="YTD", step="year", stepmode="todate"),
+                        dict(count=1, label="1y", step="year", stepmode="backward"),
+                        dict(step="all"),
+                    ]
+                )
+            ),
+            rangeslider=dict(visible=True),
+            type="date",
+        )
+    )
+    return fig
