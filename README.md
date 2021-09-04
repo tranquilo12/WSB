@@ -10,4 +10,9 @@
   - submission_comments_analytics (materialized view) -> Shows the date, submission_id and all the comments found for
     that submission_id, in `comments`
   - submission_status (materialized view) -> Shows the date, and all submissions found for that date in `submissions`
-  
+
+### ETL
+
+- The solution to all the wsb submissions after going through PRAW, `pushshift.io`.
+- Via `pushshift.io`, submissions, and their comments are searchable through their endpoints.
+- 

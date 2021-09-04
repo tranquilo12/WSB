@@ -133,19 +133,16 @@ class DB(Connections):
         res = [r[0] for r in res]
         return res
 
-    def insert_comments(self, comments: list) -> None:
-        # convert this dict into a list of tuples
+    def insert_comments(self, comments: list, local: bool = True) -> None:
         comments_as_tuples = []
         for comment in comments:
-            comments_as_tuples += tuple(v for v in comment.values())
+            comments_as_tuples.append(tuple(v for v in comment.values()))
         del comments
 
-        insert_query = f'INSERT INTO comments({",".join(self.comments_cols)}) VALUES %s ON CONFLICT (id) DO NOTHING;'
-        with self.get_psycopg2_conn() as conn:
+        insert_query = f'INSERT INTO comments({",".join(self.comments_cols)}) VALUES %s ON CONFLICT (created_utc, id) DO NOTHING;'
+        with self.get_psycopg2_conn(local=local) as conn:
             with conn.cursor() as cur:
                 psycopg2.extras.execute_values(cur, insert_query, comments_as_tuples)
-                # insert_query_2 = cur.mogrify(insert_query, comments_as_tuples)
-                cur.execute(insert_query_2)
                 conn.commit()
 
     def insert_submissions(self, submissions: list, local: bool = True) -> None:
