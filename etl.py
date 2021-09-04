@@ -240,11 +240,11 @@ with Flow("UpdateCommentsAndRefreshCommentsView") as flow2:
     comments_inserted = insert_comments(comments_dict_list=submissions_comments_dict_list)
     refresh_submission_comments_status_mat_view(upstream_tasks=[comments_inserted])
 
-# flow2.visualize()
+flow2.visualize()
 # flow2.register(project_name="UpdateSubProject")
 
-if __name__ == "__main__":
-    flow2.run(parameters={"start_date": "2020-01-01", "end_date": "2020-07-01"})
+# if __name__ == "__main__":
+#     flow2.run(parameters={"start_date": "2020-01-01", "end_date": "2020-07-01"})
     # flow2.run(parameters={"start_date": "2018-01-01", "end_date": "2018-07-01"})
     #
     # flow2.run(parameters={"start_date": "2018-07-01", "end_date": "2019-01-01"})

@@ -15,4 +15,6 @@
 
 - The solution to all the wsb submissions after going through PRAW, `pushshift.io`.
 - Via `pushshift.io`, submissions, and their comments are searchable through their endpoints.
-- 
+- Uses Prefect for executing the ETL pipeline. 
+- The first Prefect flow executes the following for updating comments: 
+  - ![Updates Comments](src/UpdateComments.pdf)
