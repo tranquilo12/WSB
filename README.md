@@ -18,3 +18,6 @@
 - Uses Prefect for executing the ETL pipeline. 
 - The first Prefect flow executes the following for updating submissions: ![Updates Submissions](src/UpdateSubmissions.pdf).
 - The second Prefect flow executes the following for updating comments, from the submissions found: ![Updates Comments](src/UpdateComments.pdf)
+
+#### Run a prefect flow for submissions
+- You can 

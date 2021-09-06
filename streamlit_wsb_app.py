@@ -5,9 +5,9 @@ from wsb import Gather
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from utils import add_time_series_slider
 from prefect import Flow, Client
-from etl import extract_submissions_wrapper, refresh_submission_status_mat_view
+from utils import add_time_series_slider
+from prefect_etl.prefect_etl import extract_submissions_wrapper, refresh_submission_status_mat_view
 
 gather = Gather()
 prefect_client = Client()
