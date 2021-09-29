@@ -1,20 +1,13 @@
 import re
-from tqdm.auto import tqdm
-from tqdm import tqdm_pandas
-from generate_urls import get_all_tickers
-from reddit_stuff import get_conn
 
-import spacy
-from joblib import Parallel, delayed
-from spacy import displacy
-
-import json
-import datetime
 import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from reddit_stuff import get_conn, get_reddit_client_praw
+import spacy
+from joblib import Parallel, delayed
+from tqdm.auto import tqdm
+
+from generate_urls import get_all_tickers
+from reddit_stuff import get_conn
 
 
 def get_wsb_comments_analytics():

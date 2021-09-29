@@ -1,29 +1,19 @@
-import ast
-import csv
-import os
 import json
-import time
-import praw
-import pmaw
-import click
-import random
-import psycopg2
-import istarmap
+import os
 import platform
-import datetime
-import requests
-import sqlalchemy
-from db import DB
-import numpy as np
-import configparser
-import pandas as pd
-from utils import batch
+import time
 from io import StringIO
+
+import numpy as np
+import pandas as pd
+import psycopg2
+import requests
+from psycopg2.extras import Json
 from tqdm.auto import tqdm
-from reddit_logger import root_logger
-from subprocess import PIPE, Popen, STDOUT
-from psycopg2.extras import Json, execute_values
-from multiprocessing import Pool, Manager, cpu_count
+
+from db import DB
+from misc.reddit_logger import root_logger
+from utils import batch
 
 MINUTE = 60
 

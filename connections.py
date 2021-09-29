@@ -1,10 +1,10 @@
+import configparser
 import os
-import sys
-import praw
+
 import pmaw
+import praw
 import psycopg2
 import sqlalchemy
-import configparser
 
 
 class Connections:

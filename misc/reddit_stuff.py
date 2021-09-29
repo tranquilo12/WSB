@@ -1,24 +1,25 @@
-from subprocess import PIPE, Popen, STDOUT
-import platform
-import os
-import time
-import json
-import praw
-import pmaw
-import click
-import random
-import requests
-import psycopg2
-import sqlalchemy
-import numpy as np
 import configparser
-import pandas as pd
-from tqdm.auto import tqdm
+import json
+import os
+import platform
+import random
+import time
 from functools import wraps
-from backoff import on_exception, expo
-from ratelimit import limits, RateLimitException
-from psycopg2.extras import Json, execute_values
 from multiprocessing import Pool, Manager, cpu_count
+from subprocess import PIPE, Popen, STDOUT
+
+import click
+import numpy as np
+import pandas as pd
+import pmaw
+import praw
+import psycopg2
+import requests
+import sqlalchemy
+from backoff import on_exception, expo
+from psycopg2.extras import Json, execute_values
+from ratelimit import limits, RateLimitException
+from tqdm.auto import tqdm
 
 MINUTE = 60
 config = configparser.ConfigParser()

@@ -1,10 +1,10 @@
-import boto3
-import requests
-import pandas as pd
 import configparser
 from io import StringIO
-
 from typing import List
+
+import boto3
+import pandas as pd
+import requests
 
 config = configparser.ConfigParser()
 config.read("config.ini")

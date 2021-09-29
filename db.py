@@ -1,11 +1,12 @@
 import os
-import sys
-import psycopg2
+from subprocess import PIPE, Popen, STDOUT
+from typing import List
+
 import numpy as np
 import pandas as pd
-from typing import List
+import psycopg2
+
 from connections import Connections
-from subprocess import PIPE, Popen, STDOUT
 
 
 class DB(Connections):
