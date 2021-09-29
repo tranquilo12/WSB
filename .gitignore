@@ -1,3 +1,7 @@
 data/
 .idea
 notebooks/.ipynb_checkpoints
+misc.reddit_logger
+*.logger
+reddit.logger
+dask-worker-space/
