@@ -23,7 +23,7 @@
 
 - From scratch, you need to first establish the current computer you're running the flow, as the "server" in the prefect
   flow backend. That's achieved by the command `prefect backend server`.
-- Create a prefect project, like: `prefect create project`.
 - Now we need to start the prefect server, and the agent that will control/schedule the automations.
   - Start the prefect server by stating `prefect server start`.
   - Local agents can be started by `prefect agent local start`.
+- Create a prefect project, like: `prefect create project <NAME>`.

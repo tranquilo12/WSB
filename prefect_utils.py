@@ -2,14 +2,17 @@ import asyncio
 import gzip
 import io
 import json
+import platform
 import urllib.parse
+from typing import Optional
 from urllib.parse import urlparse, urlencode
 
+import aiohttp
 import boto3
 import pandas as pd
 from aiohttp import ClientSession
+from aiohttp_retry import RetryClient, ExponentialRetry
 from aiolimiter import AsyncLimiter
-from requests.exceptions import HTTPError
 from tqdm.auto import tqdm
 
 from utils import batch
@@ -17,8 +20,10 @@ from wsb import Gather
 
 ########################################################################################################################
 
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-limiter = AsyncLimiter(max_rate=1, time_period=3)
+if platform.system().lower() == "windows":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+limiter = AsyncLimiter(max_rate=1, time_period=2)
 gather_wsb = Gather()
 
 ########################################################################################################################
@@ -82,32 +87,80 @@ def get_comments_ids_search_urls(start_date: str, end_date: str) -> list:
 ########################################################################################################################
 
 
+async def request_proxy_ip(session: ClientSession):
+    apikey = "G1K7leIQruMpapvpvQewPXLch3ArH_7Cle8dl3ev8ns"
+    url = f"https://api.proxyorbit.com/v1/?token={apikey}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0",
+        "Accept-Encoding": "*",
+        "Connection": "keep-alive",
+    }
+    response = await session.get(url, headers=headers)
+    response.raise_for_status()
+    response_json = await response.json()
+    return {"http": response_json["curl"], "https": response_json["curl"]}
+
+
+async def fetch_all_proxies_async(count: int):
+    async with ClientSession() as session:
+        tasks = [
+            asyncio.create_task(request_proxy_ip(session=session)) for _ in range(count)
+        ]
+
+        all_proxies = []
+        for future in tqdm(
+            asyncio.as_completed(tasks), total=count, desc="Downloading all proxies..."
+        ):
+            result = await future
+            all_proxies.append(result)
+
+    return all_proxies
+
+
+async def request_proxy_ip_1():
+    apikey = "G1K7leIQruMpapvpvQewPXLch3ArH_7Cle8dl3ev8ns"
+    url = (
+        f"https://api.proxyorbit.com/v1/?token={apikey}&protocol=http&ssl=false&get=true"
+    )
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0",
+        "Accept-Encoding": "*",
+        "Connection": "keep-alive",
+    }
+    async with aiohttp.request(method="GET", headers=headers, url=url) as response:
+        response.raise_for_status()
+        response_json = await response.json()
+
+    return {"http": response_json["curl"], "https": response_json["curl"]}
+
+
 async def download(
-    url,
-    session,
+    url: str,
     return_sub_id_from_url: bool = False,
     return_sub_id_from_dict: bool = False,
-) -> dict:
+) -> Optional[dict]:
 
     if return_sub_id_from_dict:
         sub_id, url = list(url.keys())[0], list(url.values())[0]
+
     elif return_sub_id_from_url:
         sub_id = url.split("/")[-1]
+
     else:
         sub_id = None
 
+    timeout = aiohttp.ClientTimeout(total=60*60)
+    retry_client = RetryClient(raise_for_status=False, retry_options=ExponentialRetry(attempts=10), timeout=timeout)
     async with limiter:
         try:
-            response = await session.request(url=url, method="GET", timeout=600)
-            response.raise_for_status()
-            response_json = await response.json()
-            response_json["submission_id"] = sub_id
-        except HTTPError as herr:
-            response_json = herr.response.json()
-            print(f"An error occurred: {herr}")
-        except Exception as err:
+            async with retry_client.get(url=url) as response:
+                response_json = await response.json()
+                response_json["submission_id"] = sub_id
+            await retry_client.close()
+        except aiohttp.client_exceptions.ContentTypeError as e:
             response_json = None
-            print(f"An error occurred: {err}")
+        except aiohttp.client_exceptions.ServerDisconnectedError as e:
+            response_json = None
 
     return response_json
 
@@ -117,7 +170,7 @@ async def extract_submissions(start_date: str, end_date: str) -> list:
     cols = ["created_utc", "id", "author", "url", "title", "selftext", "stickied"]
     all_results = []
     async with ClientSession() as session:
-        tasks = [asyncio.create_task(download(url, session)) for url in urls]
+        tasks = [asyncio.create_task(download(url)) for url in urls]
 
         for future in tqdm(asyncio.as_completed(tasks), total=len(urls)):
             results = await future
@@ -146,7 +199,7 @@ def uri_validate(x):
 
 async def make_urls_using_sub_id_for_comments(
     start_date: str, end_date: str, comments_ids_urls: list = None
-) -> list:
+) -> Optional[list]:
     search_comments_base_url = "https://api.pushshift.io/reddit/comment/search"
 
     if comments_ids_urls is None:
@@ -157,32 +210,28 @@ async def make_urls_using_sub_id_for_comments(
         if uri_validate(comments_ids_urls[0]):
             pass
         else:
-            return [None]
+            return None
 
     all_urls = []
+    tasks = [
+        asyncio.create_task(download(url=url, return_sub_id_from_url=True))
+        for url in comments_ids_urls
+    ]
 
-    async with ClientSession() as session:
-        tasks = [
-            asyncio.create_task(
-                download(url=url, session=session, return_sub_id_from_url=True)
-            )
-            for url in comments_ids_urls
-        ]
+    for future in tqdm(
+        asyncio.as_completed(tasks),
+        total=len(comments_ids_urls),
+        desc="Searching for comments ids within submissions",
+    ):
+        results = await future
 
-        for future in tqdm(
-            asyncio.as_completed(tasks),
-            total=len(comments_ids_urls),
-            desc="Searching for comments ids within submissions",
-        ):
-            results = await future
+        if results and ("data" in results.keys()):
+            sub_id = results["submission_id"]
+            results = results["data"]
 
-            if results and ("data" in results.keys()):
-                sub_id = results["submission_id"]
-                results = results["data"]
-
-                for id_batch in batch(results, n=300):
-                    ids = ",".join(id_batch)
-                    all_urls.append({sub_id: f"{search_comments_base_url}?ids={ids}"})
+            for id_batch in batch(results, n=400):
+                ids = ",".join(id_batch)
+                all_urls.append({sub_id: f"{search_comments_base_url}?ids={ids}"})
 
     return all_urls
 
@@ -199,31 +248,31 @@ async def extract_comments(urls: list) -> list:
         "body",
         "subreddit",
     ]
+
+    tasks = [
+        asyncio.create_task(download(url=url, return_sub_id_from_dict=True))
+        for url in urls
+    ]
+
     all_results = []
-    async with ClientSession() as session:
-        tasks = [
-            asyncio.create_task(
-                download(url=url, session=session, return_sub_id_from_dict=True)
-            )
-            for url in urls
-        ]
+    for future in tqdm(
+        asyncio.as_completed(tasks),
+        total=len(urls),
+        desc="Downloading comments in batches...",
+    ):
+        results = await future
 
-        for future in tqdm(
-            asyncio.as_completed(tasks),
-            total=len(urls),
-            desc="Downloading comments in batches...",
-        ):
-            results = await future
+        if results:
+            sub_id = results["submission_id"]
+            results = results["data"]
 
-            if results:
-                results = results["data"]
+            for result in results:
+                r = {
+                    col: (result[col] if col in result.keys() else None) for col in cols
+                }
+                r["submission_id"] = sub_id
+                all_results.append(r)
 
-                for result in results:
-                    r = {
-                        col: (result[col] if col in result.keys() else None)
-                        for col in cols
-                    }
-                    all_results.append(r)
     return all_results
 
 
