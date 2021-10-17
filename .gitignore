@@ -1,5 +1,6 @@
 data/
-.idea
+.idea/
+.venv/
 notebooks/.ipynb_checkpoints
 misc.reddit_logger
 *.logger

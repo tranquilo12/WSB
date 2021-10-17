@@ -1,6 +1,7 @@
 import configparser
 import os
 
+import redis
 import pmaw
 import praw
 import psycopg2
