@@ -1,6 +1,5 @@
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit as st
 from prefect import Client
 
 from prefect_etl import Gather

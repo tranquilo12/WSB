@@ -14,3 +14,4 @@ aiohttp_retry
 aiolimiter~=1.0.0
 click~=7.1.2
 prefect~=0.15.6
+streamlit
