@@ -4,13 +4,14 @@ import io
 import json
 import platform
 import urllib.parse
-from typing import Optional
+from typing import Union, Optional
 from urllib.parse import urlparse, urlencode
 
-import aiohttp
 import boto3
+import aiohttp
 import pandas as pd
 from aiohttp import ClientSession
+from aiohttp.client_exceptions import ContentTypeError, ServerDisconnectedError
 from aiohttp_retry import RetryClient, ExponentialRetry
 from aiolimiter import AsyncLimiter
 from tqdm.auto import tqdm
@@ -66,19 +67,21 @@ def get_submission_search_urls(start_date: str, end_date: str) -> list:
 
 
 def get_comments_ids_search_urls(start_date: str, end_date: str) -> list:
-    (
-        submission_comments_status_df,
-        _,
-    ) = gather_wsb.get_submission_comments_status_mat_view(local=True)
+    submission_status_df = gather_wsb.get_submission_status_mat_view(local=True)
+    submission_status_df.loc[:, "date"] = pd.to_datetime(submission_status_df["date"])
+    submission_status_df = submission_status_df.set_index("date")
 
-    submission_ids = submission_comments_status_df.loc[
-        start_date:end_date, "submission_id"
-    ].values.tolist()
+    all_submission_ids = []
+    submission_ids = submission_status_df.loc[
+        start_date:end_date, "all_submissions_found"
+    ]
+    for row in submission_ids:
+        all_submission_ids += row
 
     search_comments_base_url = "https://api.pushshift.io/reddit/submission/comment_ids"
     all_urls = []
 
-    for submission_id in submission_ids:
+    for submission_id in all_submission_ids:
         all_urls.append(f"{search_comments_base_url}/{submission_id}")
 
     return all_urls
@@ -87,7 +90,7 @@ def get_comments_ids_search_urls(start_date: str, end_date: str) -> list:
 ########################################################################################################################
 
 
-async def request_proxy_ip(session: ClientSession):
+async def request_proxy_ip(session: ClientSession) -> dict:
     apikey = "G1K7leIQruMpapvpvQewPXLch3ArH_7Cle8dl3ev8ns"
     url = f"https://api.proxyorbit.com/v1/?token={apikey}"
     headers = {
@@ -98,10 +101,11 @@ async def request_proxy_ip(session: ClientSession):
     response = await session.get(url, headers=headers)
     response.raise_for_status()
     response_json = await response.json()
+    await session.close()
     return {"http": response_json["curl"], "https": response_json["curl"]}
 
 
-async def fetch_all_proxies_async(count: int):
+async def fetch_all_proxies_async(count: int) -> list:
     async with ClientSession() as session:
         tasks = [
             asyncio.create_task(request_proxy_ip(session=session)) for _ in range(count)
@@ -117,11 +121,9 @@ async def fetch_all_proxies_async(count: int):
     return all_proxies
 
 
-async def request_proxy_ip_1():
+async def request_proxy_ip_1() -> dict:
     apikey = "G1K7leIQruMpapvpvQewPXLch3ArH_7Cle8dl3ev8ns"
-    url = (
-        f"https://api.proxyorbit.com/v1/?token={apikey}&protocol=http&ssl=false&get=true"
-    )
+    url = f"https://api.proxyorbit.com/v1/?token={apikey}&protocol=http&ssl=false&get=true"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0",
         "Accept-Encoding": "*",
@@ -135,7 +137,7 @@ async def request_proxy_ip_1():
 
 
 async def download(
-    url: str,
+    url: Union[dict, str],
     return_sub_id_from_url: bool = False,
     return_sub_id_from_dict: bool = False,
 ) -> Optional[dict]:
@@ -149,17 +151,21 @@ async def download(
     else:
         sub_id = None
 
-    timeout = aiohttp.ClientTimeout(total=60*60)
-    retry_client = RetryClient(raise_for_status=False, retry_options=ExponentialRetry(attempts=10), timeout=timeout)
+    timeout = aiohttp.ClientTimeout(total=60 * 60)
+    retry_client = RetryClient(
+        raise_for_status=False,
+        retry_options=ExponentialRetry(attempts=10),
+        timeout=timeout,
+    )
     async with limiter:
         try:
             async with retry_client.get(url=url) as response:
                 response_json = await response.json()
                 response_json["submission_id"] = sub_id
-            await retry_client.close()
-        except aiohttp.client_exceptions.ContentTypeError as e:
+                await retry_client.close()
+        except ContentTypeError as _:
             response_json = None
-        except aiohttp.client_exceptions.ServerDisconnectedError as e:
+        except ServerDisconnectedError as _:
             response_json = None
 
     return response_json
@@ -187,7 +193,7 @@ async def extract_submissions(start_date: str, end_date: str) -> list:
     return all_results
 
 
-def uri_validate(x):
+def uri_validate(x: str) -> bool:
     try:
         valid_result = urllib.parse.urlparse(x)
         assert all(
@@ -276,7 +282,7 @@ async def extract_comments(urls: list) -> list:
     return all_results
 
 
-def upload_json_gz_to_s3(key: str, obj: list):
+def upload_json_gz_to_s3(key: str, obj: list) -> None:
     s3_client = boto3.client("s3")
     bytes_data = io.BytesIO()
     with gzip.GzipFile(fileobj=bytes_data, mode="wb") as bf:
@@ -290,7 +296,7 @@ def upload_json_gz_to_s3(key: str, obj: list):
     )
 
 
-def download_json_gz_from_s3(key):
+def download_json_gz_from_s3(key: dict) -> list:
     s3_client = boto3.client("s3")
     response = s3_client.get_object(Bucket="polygonio-dumps", Key=key)
     content = response["Body"].read()

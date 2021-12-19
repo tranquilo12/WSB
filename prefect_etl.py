@@ -1,8 +1,6 @@
 import asyncio
-
 import prefect
 from prefect import task
-
 from prefect_utils import make_urls_using_sub_id_for_comments, extract_submissions, extract_comments, Gather
 
 gather_wsb = Gather()

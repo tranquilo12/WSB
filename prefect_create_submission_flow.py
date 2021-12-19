@@ -19,7 +19,7 @@ def create_flow():
 
 def register_flow():
     flow = create_flow()
-    flow.register(project_name="UpdateWSB")
+    flow.register(project_name="UpdateWSB", idempotency_key=flow.serialized_hash())
 
 
 def visualize_flow():

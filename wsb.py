@@ -77,7 +77,7 @@ class Gather(DB):
     @staticmethod
     def get_all_daily_discussion_thread_sub_ids_pmaw(
         last_n_days: int = 30, after_n_days: int = None
-    ):
+    ) -> list:
         endpoint = "https://api.pushshift.io/reddit/search/submission/?"
         if after_n_days:
             params = {
@@ -108,7 +108,7 @@ class Gather(DB):
 
             return all_daily_discussion_thread_sub_ids
 
-    def insert_comments_from_praw(self, comment) -> None:
+    def insert_comments_from_praw(self, comment: dict) -> None:
         insert_query = f"""INSERT INTO wsb_comments({','.join(comment.keys())}) VALUES %s ON CONFLICT (id) DO NOTHING;"""
         with self.get_psycopg2_conn() as conn:
             with conn.cursor() as cur:
@@ -117,7 +117,7 @@ class Gather(DB):
                 cur.execute(insert_query_2)
                 conn.commit()
 
-    def insert_submissions_from_pmaw(self, all_subreddit_submissions: list):
+    def insert_submissions_from_pmaw(self, all_subreddit_submissions: list) -> None:
         all_mogrified_comments, un_mogrified_comments = [], []
 
         with self.get_psycopg2_conn() as conn:
@@ -157,7 +157,7 @@ class Gather(DB):
                         )
                         all_mogrified_comments.append(mogrified_comment)
 
-                    except (TypeError, psycopg2.ProgrammingError) as e:
+                    except (TypeError, psycopg2.ProgrammingError) as _:
                         un_mogrified_comments.append(submission)
 
         all_joined_comments = b" ".join(all_mogrified_comments)
@@ -187,7 +187,7 @@ class Gather(DB):
 
     def get_all_comments_from_pmaw_single_thread(
         self, submissions: list = None, before: int = 30, after: int = 100
-    ):
+    ) -> list:
         if isinstance(submissions, list) and len(submissions) == 0:
             submissions = self.get_all_daily_discussion_thread_sub_ids_pmaw(
                 last_n_days=before, after_n_days=after
@@ -213,7 +213,7 @@ class Gather(DB):
     def filter_all_submissions_for_correct_link_flair_text(
         submissions: list,
         link_flair_text: str = "Daily Discussion",
-    ) -> [list, list]:
+    ) -> tuple:
         exceptions = []
         all_dates_gathered = []
         for submission in submissions:
@@ -242,7 +242,7 @@ class Gather(DB):
     @staticmethod
     def match_correct_submission_links_with_their_dates(
         all_dates_gathered: list, submissions: list
-    ) -> [list, list]:
+    ) -> tuple:
         final_dates_gathered = []
         exceptions = []
         for submission in tqdm(submissions):
@@ -272,7 +272,7 @@ class Gather(DB):
 
     def compare_submission_dates_in_pmaw_to_dates_in_db(
         self, final_dates_gathered: list
-    ) -> [list, pd.DataFrame]:
+    ) -> tuple[list, pd.DataFrame]:
         all_submissions_meta_df = (
             pd.DataFrame(final_dates_gathered)
             .drop_duplicates(subset=["date"], inplace=False)
@@ -341,7 +341,7 @@ class Gather(DB):
         self,
         submission_ids_to_be_refreshed: list = None,
         comment_ids_present: list = None,
-    ) -> [list, list]:
+    ) -> tuple[list, list]:
         """
         Get all the backfill submissions for some submissions that might be incomplete.
         :return:
@@ -395,10 +395,10 @@ class Gather(DB):
         for key in to_pop:
             _ = comment.pop(key)
 
-        comment = {
-            "subreddit_name_prefixed" if k == "subreddit" else k: v
-            for k, v in comment.items()
-        }
+        # comment = {
+        #     "subreddit_name_prefixed" if k == "subreddit" else k: v
+        #     for k, v in comment.items()
+        # }
 
         for i in tqdm(range(len(df))):
             comment = df.iloc[
@@ -485,8 +485,8 @@ class Gather(DB):
 
                 df_.loc[:, "edited"] = df_["edited"].astype(int)
 
-                text_stream = StringIO()
-                df_.to_csv(text_stream, header=True, index=False)
+                text_stream: StringIO = StringIO()
+                df_.to_csv(path_or_buf=text_stream, header=True, index=False)
                 text_stream.seek(0)
 
                 print("-- COPY-ing into the db...")
@@ -526,16 +526,16 @@ class Gather(DB):
 
         # there are too many comments, batch them
         batched_comments = batch(all_comments_list, n=batch_len)
-        if skip_iterations is not none:
+        if skip_iterations is not None:
             skip_iterations = int(skip_iterations)
             print(f"-- skipping iterations: {skip_iterations}")
-            for i in tqdm(range(skip_iterations), total=skip_iterations):
+            for _ in tqdm(range(skip_iterations), total=skip_iterations):
                 _ = next(batched_comments)
 
         # we need to pre-calculate the total number of batches here
         total_batches = (
             int(len(all_comments_list) // batch_len) - skip_iterations
-            if skip_iterations is not none
+            if skip_iterations is not None
             else int(len(all_comments_list) // batch_len)
         )
 
@@ -543,7 +543,7 @@ class Gather(DB):
         for bc in tqdm(batched_comments, total=total_batches):
             j += 1
 
-            for comment in tqdm(bc, total=batch_len, leave=false):
+            for comment in tqdm(bc, total=batch_len, leave=False):
                 # we need to remove some keys from comment, but cant pop keys in a loop within a dict, so a workaround
                 # is used, by using comment_copy.
                 comment_copy = comment.copy()
@@ -612,7 +612,7 @@ class Gather(DB):
             # turn into dataframe to make things easier downstream.
             df_ = pd.dataframe.from_dict(to_insert_comments)
 
-            text_stream = stringio()
+            text_stream = StringIO()
             for key in ["author_flair_richtext", "gildings", "all_awardings"]:
                 if key in df_.columns.tolist():
                     df_ = df_.drop(columns=[key])
@@ -626,7 +626,7 @@ class Gather(DB):
                 )
 
             df_.loc[:, "edited"] = df_["edited"].astype(int)
-            df_.to_csv(text_stream, header=true, index=false)
+            df_.to_csv(text_stream, header=True, index=False)
             text_stream.seek(0)
 
             print("-- copy-ing into the db...")
@@ -639,11 +639,11 @@ class Gather(DB):
                             file=text_stream,
                         )
                         conn.commit()
-                    except psycopg2.programmingerror as e:
+                    except psycopg2.ProgrammingError as e:
                         print(e)
             print("-- done.")
 
-    def backfill_comments(self):
+    def backfill_comments(self) -> None:
         self.logger.info(
             "-- 1/9 Fetching 'Daily Discussions Thread' submissions from pmaw ..."
         )

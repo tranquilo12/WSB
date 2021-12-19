@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-import psycopg2
+from psycopg2.extras import execute_values
 
 from connections import Connections
 
@@ -56,7 +56,7 @@ class DB(Connections):
             "-d",
             self.get_db_conn_str(local=local),
         ]
-        process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
+        process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=False)
         stdout = process.communicate()[0].decode("utf-8").strip()
         return stdout
 
@@ -98,6 +98,7 @@ class DB(Connections):
     def refresh_submission_comments_status_mat_view(self, local: bool = True) -> str:
         command = "REFRESH MATERIALIZED VIEW submission_comments_status;"
         stdout = self.execute_command_in_db(command_str=command, local=local)
+        print("-- Refreshed submission_comments_status materialized view...")
         return stdout
 
     def create_submission_status_mat_view(self, local: bool = True) -> str:
@@ -121,6 +122,7 @@ class DB(Connections):
     def refresh_submission_status_mat_view(self, local: bool = True) -> str:
         command = "REFRESH MATERIALIZED VIEW submission_status;"
         stdout = self.execute_command_in_db(command_str=command, local=local)
+        print("-- Refreshed submission_status materialized view...")
         return stdout
 
     def get_unique_column_values_from_table(
@@ -143,8 +145,9 @@ class DB(Connections):
         insert_query = f'INSERT INTO comments({",".join(self.comments_cols)}) VALUES %s ON CONFLICT (created_utc, id) DO NOTHING;'
         with self.get_psycopg2_conn(local=local) as conn:
             with conn.cursor() as cur:
-                psycopg2.extras.execute_values(cur, insert_query, comments_as_tuples)
+                execute_values(cur, insert_query, comments_as_tuples)
                 conn.commit()
+        print("-- Inserted comments...")
 
     def insert_submissions(self, submissions: list, local: bool = True) -> None:
         submissions_as_tuples = []
@@ -155,5 +158,6 @@ class DB(Connections):
         insert_query = f"INSERT INTO submissions({','.join(self.submission_cols)}) VALUES %s ON CONFLICT (created_utc, id) DO NOTHING;"
         with self.get_psycopg2_conn(local=local) as conn:
             with conn.cursor() as cur:
-                psycopg2.extras.execute_values(cur, insert_query, submissions_as_tuples)
+                execute_values(cur, insert_query, submissions_as_tuples)
                 conn.commit()
+        print("-- Inserted submissions")

@@ -55,7 +55,7 @@ class Connections:
 
     def get_psql_command(self):
         if self.system_type == "Darwin":
-            psql = r"/usr/local/bin/psql"
+            psql = r"/opt/homebrew/Cellar/postgresql@13/13.5_1/bin/psql"
             return psql
 
         elif self.system_type == "Windows":
@@ -75,6 +75,12 @@ class Connections:
             password=self.config["REDDIT"]["password"],
             user_agent=self.config["REDDIT"]["useragent"],
         )
+
+    def get_comments_flow_id(self):
+        return self.config["PREFECT"]["commentsFlowId"]
+
+    def get_submissions_flow_id(self):
+        return self.config["PREFECT"]["submissionsFlowId"]
 
     @staticmethod
     def get_pushshift_client():

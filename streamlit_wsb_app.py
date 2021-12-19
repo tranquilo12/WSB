@@ -15,63 +15,66 @@ st.title("WSB Status")
 st.header("Submission Status")
 
 submission_status_df = gather.get_submission_status_mat_view(local=True)
+submission_status_df = submission_status_df.sort_values(by=["date"])
 
-expander_1 = st.beta_expander(label="Submissions backfill options", expanded=False)
+expander_1 = st.expander(label="Submissions options", expanded=False)
 with expander_1:
-    (
-        expander_row1_1,
-        expander_row1_2,
-        expander_row1_3,
-        expander_row1_4,
-    ) = st.beta_columns((1, 1, 1, 1))
+    # (
+    #     expander_row1_1,
+    #     expander_row1_2,
+    #     expander_row1_3,
+    #     expander_row1_4,
+    # ) = st.columns((1, 1, 1, 1))
 
-    with expander_row1_1:
-        st.markdown(
-            """<style> div.stSlider { margin-left:5px; padding-left:15px } </style>""",
-            unsafe_allow_html=True,
-        )
+    # with expander_row1_1:
+    st.markdown(
+        """<style> div.stSlider { margin-left:5px; padding-left:15px } </style>""",
+        unsafe_allow_html=True,
+    )
 
-        rolling_days = st.slider("Submission: Select rolling window length", 0, 100)
+    rolling_days = st.slider("Submission: Select rolling window length", 0, 100)
 
-        submission_status_df.loc[:, "submissions_count_rolling_avg"] = (
-            submission_status_df["submissions_count"].rolling(rolling_days).mean()
-        )
+    submission_status_df.loc[:, "submissions_count_rolling_avg"] = (
+        submission_status_df["submissions_count"].rolling(rolling_days).mean()
+    )
 
-        submission_status_df.loc[:, "submissions_count_rolling_std"] = (
-            submission_status_df["submissions_count"].rolling(rolling_days).std()
-        )
+    submission_status_df.loc[:, "submissions_count_rolling_std"] = (
+        submission_status_df["submissions_count"].rolling(rolling_days).std()
+    )
 
-    with expander_row1_2:
-        backfill_start_date = st.date_input(
-            label="Backfill Start Date",
-            min_value=submission_status_df["date"].min(),
-            max_value=submission_status_df["date"].max(),
-        ).strftime("%Y-%m-%d")
+    # with expander_row1_2:
+    #     backfill_start_date = st.date_input(
+    #         label="Backfill Start Date",
+    #         min_value=submission_status_df["date"].min(),
+    #         # max_value=submission_status_df["date"].max(),
+    #     ).strftime("%Y-%m-%d")
 
-    with expander_row1_3:
-        backfill_end_date = st.date_input(
-            label="Backfill End Date",
-            min_value=submission_status_df["date"].min(),
-            max_value=submission_status_df["date"].max(),
-        ).strftime("%Y-%m-%d")
+    # with expander_row1_3:
+    #     backfill_end_date = st.date_input(
+    #         label="Backfill End Date",
+    #         min_value=submission_status_df["date"].min(),
+    #         # max_value=submission_status_df["date"].max(),
+    #     ).strftime("%Y-%m-%d")
 
-    with expander_row1_4:
-        submission_flow_id = "b825177a-98f7-447f-9a48-b49c19436c2c"
-        st.markdown(
-            """<style> div.stButton > button:first-child { margin-top: 20px; margin-left:10px } </style>""",
-            unsafe_allow_html=True,
-        )
-        go_button = st.button("Go fetch submissions!")
-        if go_button:
-            prefect_client.create_flow_run(
-                flow_id=submission_flow_id,
-                parameters={
-                    "start_date": backfill_start_date,
-                    "end_date": backfill_end_date,
-                },
-            )
-            go_button = False
+    # with expander_row1_4:
+    #     # submission_flow_id = "1a06582e-94f7-460c-95e7-d9a1b1eecc3c"
+    #     submission_flow_id = gather.get_submissions_flow_id()
+    #     st.markdown(
+    #         """<style> div.stButton > button:first-child { margin-top: 20px; margin-left:10px } </style>""",
+    #         unsafe_allow_html=True,
+    #     )
+    #     go_button = st.button("Go fetch submissions!")
+    #     if go_button:
+    #         prefect_client.create_flow_run(
+    #             flow_id=submission_flow_id,
+    #             parameters={
+    #                 "start_date": backfill_start_date,
+    #                 "end_date": backfill_end_date,
+    #             },
+    #         )
+    #         go_button = False
 
+# rolling_days = 30
 fig = go.Figure(
     [
         go.Scatter(
@@ -106,8 +109,8 @@ st.header("Submission -> Comments status")
     submission_comments_count_df,
 ] = gather.get_submission_comments_status_mat_view(local=True)
 
-expander_2 = st.beta_expander(
-    label="Comments in Submissions backfill options", expanded=False
+expander_2 = st.expander(
+    label='Comments in Submissions backfill options', expanded=False
 )
 
 with expander_2:
@@ -116,7 +119,7 @@ with expander_2:
         expander_row2_2,
         expander_row2_3,
         expander_row2_4,
-    ) = st.beta_columns((1, 1, 1, 1))
+    ) = st.columns((1, 1, 1, 1))
 
     with expander_row2_1:
         rolling_days_comments = st.slider(
@@ -137,18 +140,19 @@ with expander_2:
         comments_backfill_start_date = st.date_input(
             label="Backfill Start Date",
             min_value=submission_comments_status_df.index.min(),
-            max_value=submission_comments_status_df.index.max(),
+            # max_value=submission_comments_status_df.index.max(),
         ).strftime("%Y-%m-%d")
 
     with expander_row2_3:
         comments_backfill_end_date = st.date_input(
             label="Backfill End Date",
             min_value=submission_comments_status_df.index.min(),
-            max_value=submission_comments_status_df.index.max(),
+            # max_value=submission_comments_status_df.index.max(),
         ).strftime("%Y-%m-%d")
 
     with expander_row2_4:
-        refill_comments_flow_id = "2b6c02fa-5ebb-4ed9-9eb0-a5f6aab55c81"
+        # refill_comments_flow_id = "2b6c02fa-5ebb-4ed9-9eb0-a5f6aab55c81"
+        refill_comments_flow_id = gather.get_comments_flow_id()
         st.markdown(
             """<style> div.stButton > button:first-child { margin-top: 20px; margin-left:10px } </style>""",
             unsafe_allow_html=True,
