@@ -1,5 +1,3 @@
-# Retard Strength
-
 ## DB notes
 
 ### Postgres (within AWS EC2 + TimeScaleDB)
